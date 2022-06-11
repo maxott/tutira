@@ -1,0 +1,138 @@
+// Automatically generated code, please do NOT edit, 
+// but edit the respective template "primitive.go.tmpl"
+//
+
+package core
+
+import (
+	"fmt"
+)
+
+{{ range list "*ListT" "*VectorT" "Symbol" "Keyword" "String" "Int64" "Float64" "Nil" "Bool" "LambdaT" }}
+//*************** {{ . }} *****************
+
+{{- if (and (ne . "*ListT") (ne . "Symbol")) }}
+func (s {{ . }}) Eval(scope Scope, ctxt EvalContext) (term TermI, err error) {
+	return s, nil
+}
+{{- end }}
+
+
+func (s {{ . }}) AsList() (*ListT, bool) {
+{{- if (eq . "*ListT") }}
+	return s, true
+{{- else }}
+	return nil, false
+{{- end }}
+}
+
+
+func (s {{ . }}) AsSymbol() (*Symbol, bool) {
+{{- if (eq . "Symbol") }}
+	return &s, true
+{{- else }}
+	return nil, false
+{{- end }}}
+
+func (s {{ . }}) AsNumber() (NumberI, bool) {
+{{- if or (eq . "Int64") (eq . "Float64") }}
+	return s, true
+{{- else }}
+	return nil, false
+{{- end }}	
+}
+
+func (s {{ . }}) AsString() (*string, bool) {
+{{- if or (eq . "Symbol") (eq . "Keyword") (eq . "String") }}
+	v := string(s)
+	return &v, true
+{{- else }}
+	return nil, false
+{{- end }}
+}
+
+func (s {{ . }}) AsBool() (bool, bool) {
+{{- if (eq . "Bool") }}
+	return  bool(s), true
+{{- else }}
+	return false, false
+{{- end }}	
+}
+
+func (s {{ . }}) AsLambda() (*LambdaT, bool) {
+{{- if (eq . "LambdaT") }}
+	return &s, true
+{{- else }}
+	return nil, false
+{{- end }}	
+}
+
+func (s {{ . }}) IsNil() (bool) {
+{{- if (eq . "Nil") }}
+	return true
+{{- else }}
+	return false
+{{- end }}	
+}
+
+func (s {{ . }}) Type() (string) {
+{{- if (eq . "*ListT") }}
+	return ListType
+{{- end }}	
+{{- if (eq . "*VectorT") }}
+	return VectorType
+{{- end }}	
+{{- if (eq . "Symbol") }}
+	return SymbolType
+{{- end }}	
+{{- if (eq . "Keyword") }}
+	return KeywordType
+{{- end }}	
+{{- if (eq . "String") }}
+	return StringType
+{{- end }}	
+{{- if (eq . "Int64") }}
+	return IntType
+{{- end }}	
+{{- if (eq . "Float64") }}
+	return FloatType
+{{- end }}	
+{{- if (eq . "Bool") }}
+	return BoolType
+{{- end }}	
+{{- if (eq . "Nil") }}
+	return NilType
+{{- end }}	
+{{- if (eq . "LambdaT") }}
+	return LambdaType
+{{- end }}	
+}
+
+{{- if (and (ne . "*ListT") (ne . "*VectorT")) }}
+func (s {{ . }}) Print(withParsingInfo bool) (string) {
+	if ps, ok := s.AsString(); ok {
+{{- if (eq . "String") }}
+	  return fmt.Sprintf("\"%s\"", *ps)
+{{- else if (eq . "Keyword") }}
+	  return fmt.Sprintf(":%s", *ps)
+{{- else }}
+		return *ps
+{{- end }}	
+	}
+	return fmt.Sprintf("%v", s)
+}
+{{- end }}	
+
+{{ if or (eq . "Int64") (eq . "Float64") -}}
+func (s {{ . }}) AsInt() (*int64, bool) {
+	v := int64(s)
+	return &v, true
+}
+
+func (s {{ . }}) AsFloat() (*float64, bool) {
+	v := float64(s)
+	return &v, true
+}
+{{- end }}
+
+{{ end }}

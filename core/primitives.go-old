@@ -1,0 +1,196 @@
+package core
+
+import (
+	"fmt"
+)
+
+type VectorT struct {
+	elements []TermI
+	level    int
+}
+
+type Int64 int64
+type Float64 float64
+type String string
+
+func ToInt(term TermI) (*int64, bool) {
+	if n, ok := term.AsNumber(); ok {
+		if v, ok2 := n.AsInt(); ok2 {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+func ToFloat(term TermI) (*float64, bool) {
+	if n, ok := term.AsNumber(); ok {
+		if v, ok2 := n.AsFloat(); ok2 {
+			return v, true
+		}
+	}
+	return nil, false
+}
+
+type Symbol string
+type Keyword string
+
+//*************** Vector *****************
+
+func (l *VectorT) Eval(scope Scope) (term TermI, err error) {
+	return
+}
+
+func (s *VectorT) AsList() (*ListT, bool) {
+	return nil, false
+}
+
+func (s *VectorT) AsSymbol() (*Symbol, bool) {
+	return nil, false
+}
+
+func (s *VectorT) AsNumber() (NumberI, bool) {
+	return nil, false
+}
+
+func (s *VectorT) AsString() (*string, bool) {
+	return nil, false
+}
+
+//*************** Symbol *****************
+
+func (s Symbol) Eval(scope Scope) (term TermI, err error) {
+	fmt.Println(">>>>>>>>")
+	if v, ok := scope.GetBinding(&s); !ok {
+		err = &EvalError{"Can't resolve binding", s}
+		return
+	} else {
+		term = v
+		return
+	}
+}
+
+func (s Symbol) AsList() (*ListT, bool) {
+	return nil, false
+}
+
+func (s Symbol) AsSymbol() (*Symbol, bool) {
+	return &s, true
+}
+
+func (s Symbol) AsNumber() (NumberI, bool) {
+	return nil, false
+}
+
+func (s Symbol) AsString() (*string, bool) {
+	v := string(s)
+	return &v, true
+}
+
+//*************** Keyword *****************
+
+func (s Keyword) Eval(scope Scope) (term TermI, err error) {
+	return s, nil
+}
+
+func (s Keyword) AsList() (*ListT, bool) {
+	return nil, false
+}
+
+func (s Keyword) AsSymbol() (*Symbol, bool) {
+	return nil, false
+}
+
+func (s Keyword) AsNumber() (NumberI, bool) {
+	return nil, false
+}
+
+func (s Keyword) AsString() (*string, bool) {
+	v := string(s)
+	return &v, true
+}
+
+//*************** String *****************
+
+func (s String) Eval(scope Scope) (term TermI, err error) {
+	return s, nil
+}
+
+func (s String) AsList() (*ListT, bool) {
+	return nil, false
+}
+
+func (s String) AsSymbol() (*Symbol, bool) {
+	return nil, false
+}
+
+func (s String) AsNumber() (NumberI, bool) {
+	return nil, false
+}
+
+func (s String) AsString() (*string, bool) {
+	v := string(s)
+	return &v, true
+}
+
+//*************** Int64 *****************
+
+func (s Int64) Eval(scope Scope) (term TermI, err error) {
+	return s, nil
+}
+
+func (s Int64) AsList() (*ListT, bool) {
+	return nil, false
+}
+
+func (s Int64) AsSymbol() (*Symbol, bool) {
+	return nil, false
+}
+
+func (s Int64) AsNumber() (NumberI, bool) {
+	return s, true
+}
+
+func (s Int64) AsInt() (*int64, bool) {
+	v := int64(s)
+	return &v, true
+}
+
+func (s Int64) AsFloat() (*float64, bool) {
+	v := float64(s)
+	return &v, true
+}
+
+func (s Int64) AsString() (*string, bool) {
+	return nil, false
+}
+
+//*************** Float64 *****************
+
+func (s Float64) Eval(scope Scope) (term TermI, err error) {
+	return s, nil
+}
+
+func (s Float64) AsList() (*ListT, bool) {
+	return nil, false
+}
+
+func (s Float64) AsSymbol() (*Symbol, bool) {
+	return nil, false
+}
+
+func (s Float64) AsNumber() (NumberI, bool) {
+	return s, true
+}
+
+func (s Float64) AsInt() (*int64, bool) {
+	return nil, false
+}
+
+func (s Float64) AsFloat() (*float64, bool) {
+	v := float64(s)
+	return &v, true
+}
+
+func (s Float64) AsString() (*string, bool) {
+	return nil, false
+}
