@@ -10,7 +10,7 @@ import (
 
 	"github.com/jackc/pgtype"
 	"github.com/jackc/pgx/v4"
-	"github.com/maxott/welisp/core"
+	"github.com/maxott/tutiro/core"
 )
 
 // const DB_DRIVER_DEF = "postgres"

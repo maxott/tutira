@@ -7,6 +7,9 @@ import (
 )
 
 func init() {
+	addCoreFunction("quote", quoteFn, "missing docs")
+	addCoreFunction("type", typeFn, "missing docs")
+
 	addAliasedCoreFunction([]string{"lambda", "fn"}, lambdaFn, "missing docs")
 
 	addCoreFunction("progn", prognFn, "missing docs")
@@ -23,6 +26,31 @@ func init() {
 
 	addAliasedCoreFunction([]string{"add", "+"}, addFn, "missing docs")
 	addAliasedCoreFunction([]string{"mul", "*"}, mulFn, "missing docs")
+}
+
+func quoteFn(scope Scope, params *ListT, ctxt EvalContext) (TermI, error) {
+	els := params.elements
+	if len(els) == 1 {
+		return els[0], nil
+	} else {
+		return &ListT{params.elements, -1}, nil
+	}
+}
+
+func typeFn(scope Scope, params *ListT, ctxt EvalContext) (TermI, error) {
+	els := make([]TermI, len(params.elements))
+	for i, t := range params.elements {
+		typeS := t.Type()
+		if sym, ok := t.(Symbol); ok {
+			if b, ok2 := scope.GetBinding(&sym); ok2 {
+				typeS = b.Type()
+			} else if l, ok3 := scope.GetLambda(&sym); ok3 {
+				typeS = l.Type()
+			}
+		}
+		els[i] = String(typeS)
+	}
+	return &ListT{els, -1}, nil
 }
 
 func lambdaFn(outScope Scope, outParams *ListT, octxt EvalContext) (TermI, error) {
@@ -78,7 +106,11 @@ func setqFn(scope Scope, params *ListT, ctxt EvalContext) (TermI, error) {
 		return nil, ctxt.Error("setq only handles two parameters", nil)
 	}
 	if name, ok := els[0].AsSymbol(); ok {
-		scope.AddBinding(name, els[1])
+		val, err := els[1].Eval(scope, ctxt)
+		if err != nil {
+			return nil, err
+		}
+		scope.AddBinding(name, val)
 		return els[1], nil
 	} else {
 		return nil, ctxt.Error("setq first parameter is not a symbol", els[0])
@@ -124,6 +156,7 @@ func letFn(scope Scope, params *ListT, ctxt EvalContext) (TermI, error) {
 
 func importFn(scope Scope, params *ListT, ctxt EvalContext) (TermI, error) {
 	h := ParamsHelper(params, true, 1, -1, scope, ctxt)
+	els := make([]TermI, 0)
 	for i, ns := range h.RestAsStrings() {
 		fna, ok := namespaceFunctions[ns]
 		if !ok {
@@ -131,10 +164,11 @@ func importFn(scope Scope, params *ListT, ctxt EvalContext) (TermI, error) {
 		}
 		for name, fn := range fna {
 			sy := Symbol(name)
+			els = append(els, sy)
 			scope.AddBinding(&sy, fn)
 		}
 	}
-	return &Nil{}, nil
+	return &ListT{els, -1}, nil
 }
 
 // (-> form1 form2 form3 ...)

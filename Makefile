@@ -18,7 +18,7 @@ test:
 	go test -v -coverprofile coverage.out ./...
 
 test-stream:
-	go test -v ./core --run TestReaderListInList
+	go test -v ./core --run TestMachine
 
 coverage: test
 	go tool cover -html=coverage.out

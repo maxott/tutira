@@ -6,39 +6,46 @@ import (
 )
 
 func Eval(prog string) (res TermI, err error) {
-	m := NewMachine()
+	stream := StringStream(prog)
+	reader := Reader(stream)
+	m := NewMachine(reader)
 	c := context.Background()
-	return m.Eval(c, prog)
+	return m.Eval(c)
+}
+
+type MachineI interface {
+	Eval(ctxt context.Context) (res TermI, err error)
+	ResetScope() MachineI
 }
 
 type machine struct {
-	scope Scope
+	reader ReaderI
+	scope  Scope
 }
 
-func NewMachine() *machine {
-	m := &machine{}
+func NewMachine(reader ReaderI) MachineI {
+	m := &machine{reader: reader}
 	return m.ResetScope()
 }
 
-func (m *machine) Eval(ctxt context.Context, prog string) (res TermI, err error) {
-	c := context.Background()
-	stream := StringStream(prog)
-	reader := Reader(stream)
-	term, err := reader.Next(c, false)
+func (m *machine) Eval(ctxt context.Context) (res TermI, err error) {
+	term, err := m.reader.Next(ctxt, false)
 	if err != nil {
 		return
 	}
-	list, ok := term.(*ListT)
-	if !ok {
-		err = &EvalError{"Not a list", list}
+	if list, ok := term.(*ListT); ok {
+		res, err = list.Eval(m.scope, NewEvalContext(list))
+	} else {
+		res, err = term.Eval(m.scope, NewEvalContext(nil))
 	}
-	return list.Eval(m.scope, NewEvalContext(list))
+	return
 }
 
-func (m *machine) ResetScope() *machine {
-	m.scope = &RootScope{
+func (m *machine) ResetScope() MachineI {
+	rs := RootScope{
 		functions: coreFunction,
 	}
+	m.scope = rs.Inner(NewEvalContext(nil))
 	return m
 }
 

@@ -8,9 +8,31 @@ import (
 )
 
 type ReaderI interface {
-	// Return next token. If 'onlySyntax' is set, skip
-	// whitespace related tokens
-	Next(ctxt context.Context, onlySyntax bool) (term TermI, err error)
+	// Return next term. If 'consumeWhitespace' is set, skip
+	// leading whitespace
+	Next(ctxt context.Context, consumeWhitespace bool) (term TermI, err error)
+}
+
+type ReaderError struct {
+	Msg string
+	StreamError
+}
+
+func (e *ReaderError) Error() string {
+	return fmt.Sprintf("%s - offset: %d", e.Msg, e.Offset)
+}
+
+type UnbalancedReaderError struct {
+	Level int
+	ReaderError
+}
+
+func (e *UnbalancedReaderError) Error() string {
+	return fmt.Sprintf("still %d parenthesis open", e.Level)
+}
+
+func readerError(serr *StreamError) *ReaderError {
+	return &ReaderError{Msg: serr.Msg, StreamError: *serr}
 }
 
 // Converts the top of the stream to a term. Returns nil if the content doesn't
@@ -45,19 +67,11 @@ const LF = rune(0xa)
 const CR = rune(0xd)
 const SPACE = rune(0x20)
 
-func (r *reader) Next(ctxt context.Context, onlySyntax bool) (term TermI, err error) {
-	var p rune
-	for {
-		p, err = r.stream.Peek(ctxt)
-		if err != nil {
-			return
-		}
-		if p != SPACE && p != TAB && p != LF && p != CR {
-			break
-		} else {
-			// consume whitespace
-			r.stream.Next(ctxt)
-		}
+func (r *reader) Next(ctxt context.Context, consumeWhitespace bool) (term TermI, err error) {
+	p, err2 := r.stream.Peek(ctxt, consumeWhitespace)
+	if err2 != nil {
+		err = &ReaderError{Msg: "on stream peek", StreamError: *err2}
+		return
 	}
 	if m, ok := r.mapper[p]; ok {
 		term, err = m(ctxt, r.stream, r)
@@ -100,19 +114,31 @@ func vectorMapper(ctxt context.Context, s StreamI, reader ReaderI) (vector TermI
 	return
 }
 
+type ctxLabelT int64
+
+const ctxLabel ctxLabelT = 0
+
 func getList(ctxt context.Context, closingRune rune, s StreamI, reader ReaderI) (terms []TermI, err error) {
 	s.Next(ctxt) // consume opening rune
-	var p rune
 	for {
-		if p, err = s.Peek(ctxt); err != nil {
+		level := 1
+		li := ctxt.Value(ctxLabel)
+		if li != nil {
+			level = li.(int)
+		}
+
+		p, serr := s.Peek(ctxt, true)
+		if serr != nil {
+			err = &UnbalancedReaderError{Level: level, ReaderError: *readerError(serr)}
 			return
 		}
 		if p == closingRune {
 			s.Next(ctxt) // consume closing rune
 			break
 		}
+		ctxt2 := context.WithValue(ctxt, ctxLabel, level+1)
 		var t TermI
-		if t, err = reader.Next(ctxt, false); err != nil {
+		if t, err = reader.Next(ctxt2, true); err != nil {
 			return
 		}
 		terms = append(terms, t)
@@ -120,22 +146,30 @@ func getList(ctxt context.Context, closingRune rune, s StreamI, reader ReaderI) 
 	return
 }
 
+type OpenStringReaderError struct {
+	ReaderError
+}
+
+func (e *OpenStringReaderError) Error() string {
+	return fmt.Sprintf("missing closure of string starting at %d", e.Offset)
+}
+
 func stringMapper(ctxt context.Context, s StreamI, _ ReaderI) (term TermI, err error) {
-	match, ok, err := s.NextMatch(ctxt, stringRE)
+	match, ok, serr := s.NextMatch(ctxt, stringRE)
 	if ok {
 		term = String(string(match[1]))
 		return
 	}
-	if err == nil {
-		// a non match is always an error as no symbol can start with '"'
-		err = fmt.Errorf("what looked like a string, isn't one")
-		return
+	// a non match is always an error as no symbol can start with '"'
+	if serr == nil {
+		serr = &StreamError{Offset: s.Offset()}
 	}
+	err = &OpenStringReaderError{ReaderError{Msg: "", StreamError: *serr}}
 	return
 }
 
 func numberMapper(ctxt context.Context, s StreamI, _ ReaderI) (term TermI, err error) {
-	match, ok, err := s.NextMatch(ctxt, numberRE)
+	match, ok, serr := s.NextMatch(ctxt, numberRE)
 	if ok {
 		if len(match) == 4 {
 			if len(match[2])+len(match[3]) > 0 {
@@ -152,7 +186,10 @@ func numberMapper(ctxt context.Context, s StreamI, _ ReaderI) (term TermI, err e
 			return
 		}
 	}
-	// ok to return nil as an '+' could be the beginning of a number of a standalone symbol
+	if serr != nil {
+		err = readerError(serr)
+	}
+	// ok to return a nil term as an '+' could be the beginning of a number of a standalone symbol
 	return
 }
 
@@ -168,16 +205,18 @@ func quoteMapper(ctxt context.Context, s StreamI, reader ReaderI) (list TermI, e
 }
 
 func symbolMapper(ctxt context.Context, s StreamI, _ ReaderI) (term TermI, err error) {
-	match, ok, err := s.NextMatch(ctxt, symbolRE)
+	match, ok, serr := s.NextMatch(ctxt, symbolRE)
 	if ok {
 		term = Symbol(string(match[1]))
 		return
 	}
-	if err == nil {
+	if serr == nil {
 		// symbols are the most generic atoms, so we should actually never get here
 		// except maybe for an empty stream
-		err = fmt.Errorf("what looked like a symbol, isn't one")
+		err = &ReaderError{Msg: "what looked like a symbol, isn't one"}
 		return
+	} else {
+		err = readerError(serr)
 	}
 	return
 }

@@ -2,7 +2,7 @@ package core
 
 import (
 	"context"
-	_ "fmt"
+	"fmt"
 	_ "regexp"
 	"strconv"
 	"strings"
@@ -82,6 +82,30 @@ func TestReaderListInList(t *testing.T) {
 	}
 }
 
+func TestReaderPartialList(t *testing.T) {
+	s := "((fn [a]"
+	c := context.Background()
+	stream := StringStream(s)
+	reader := Reader(stream)
+	_, err := reader.Next(c, true)
+	fmt.Printf("err %v", err)
+	var uberr *UnbalancedReaderError
+	assert.IsType(t, uberr, err)
+
+}
+
+func TestReaderPartialString(t *testing.T) {
+	s := "\"foo"
+	c := context.Background()
+	stream := StringStream(s)
+	reader := Reader(stream)
+	_, err := reader.Next(c, true)
+	var oserr *OpenStringReaderError
+	assert.IsType(t, oserr, err)
+	//fmt.Printf("Error: %v", err)
+
+}
+
 func TestReaderQuote(t *testing.T) {
 	if l := parseListHelper(t, "'123"); l != nil {
 		el := l.elements
@@ -106,7 +130,7 @@ func parseHelper(t *testing.T, s string, expType string) (term TermI) {
 	stream := StringStream(s)
 	reader := Reader(stream)
 	var err error
-	term, err = reader.Next(c, false)
+	term, err = reader.Next(c, true)
 	assert.NoError(t, err, "reader next")
 	assert.NotNil(t, term)
 	if term != nil {

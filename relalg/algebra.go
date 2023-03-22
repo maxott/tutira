@@ -3,7 +3,7 @@ package relalg
 import (
 	"fmt"
 
-	"github.com/maxott/welisp/core"
+	"github.com/maxott/tutiro/core"
 )
 
 const NAMESPACE = "relalg"

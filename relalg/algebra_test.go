@@ -6,7 +6,7 @@ import (
 	_ "strconv"
 	"testing"
 
-	"github.com/maxott/welisp/core"
+	"github.com/maxott/tutiro/core"
 	"github.com/stretchr/testify/assert"
 )
 

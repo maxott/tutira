@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/maxott/welisp/core"
+	"github.com/maxott/tutiro/core"
 )
 
 const DB_URL_DEF = "postgres://localhost:5432/blue_growth?sslmode=disable"
